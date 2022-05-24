@@ -5,35 +5,33 @@ import org.gradle.api.artifacts.Configuration;
 
 public class ArchUnitGradlePlugin implements Plugin<Project> {
 
-    public void apply(Project project) {
+  public void apply(Project project) {
 
-        Configuration conf = project.getConfigurations().create("archUnitClasspath");
-        ArchUnitGradleConfig archUnitGradleConfig = project.getExtensions()
-                .create("archUnit", ArchUnitGradleConfig.class, project);
+    Configuration conf = project.getConfigurations().create("archUnitExtraLib");
+    ArchUnitGradleConfig archUnitGradleConfig = project.getExtensions()
+        .create("archUnit", ArchUnitGradleConfig.class, project);
 
-        final Task checkTask = findExistingTaskOrFailOtherwise("check",project);
+    ArchUnitRulesTask archUnitTask = project.getTasks().create("checkRules", ArchUnitRulesTask.class);
+    archUnitTask.setGroup("verification");
+    archUnitTask.getClasspath().from(conf);
+    archUnitTask.getArchUnitGradleConfig().convention(archUnitGradleConfig);
 
-        final Task testTask = findExistingTaskOrFailOtherwise("test",project);
+    final Task checkTask = findExistingTaskOrFailOtherwise("check", project);
+    final Task testTask = findExistingTaskOrFailOtherwise("test", project);
 
-        project.getTasks().register("checkRules", ArchUnitRulesTask.class,
-                t -> {
-                    t.setGroup("verification");
-                    checkTask.dependsOn(t);
-                    t.mustRunAfter(testTask);
+    checkTask.dependsOn(archUnitTask);
+    archUnitTask.mustRunAfter(testTask);
 
-                    t.getClasspath().from(conf);
-                    t.getArchUnitGradleConfig().convention(archUnitGradleConfig);
-                });
+  }
+
+  private Task findExistingTaskOrFailOtherwise(String taskName, Project project) {
+
+    final Task taskToFind = project.getTasks().findByName(taskName);
+
+    if (taskToFind == null) {
+      throw new GradleException("can't find the '" + taskName + "' task on which archUnitGradle task will depend - please check Gradle java plugin is applied");
     }
 
-    private Task findExistingTaskOrFailOtherwise(String taskName, Project project){
-
-        final Task taskToFind = project.getTasks().findByName(taskName);
-
-        if (taskToFind==null){
-            throw new GradleException("can't find the '"+taskName+"' task on which archUnitGradle task will depend - please check Gradle java plugin is applied");
-        }
-
-        return taskToFind;
-    }
+    return taskToFind;
+  }
 }
